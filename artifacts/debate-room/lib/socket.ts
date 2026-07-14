@@ -58,6 +58,7 @@ export function emitTypingStop(roomId: string): void {
 export type SocketEvents = {
   new_message: (msg: Message) => void;
   message_deleted: (data: { messageId: string }) => void;
+  reaction_updated: (data: { messageId: string; reactions: { emoji: string; count: number; userIds: string[] }[] }) => void;
   online_count: (data: { roomId: string; count: number }) => void;
   typing_update: (data: { roomId: string; typingUsernames: string[] }) => void;
 };

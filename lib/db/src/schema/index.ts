@@ -113,6 +113,21 @@ export const reports = pgTable("reports", {
   status: reportStatusEnum("status").default("open").notNull(),
 });
 
+export const messageReactions = pgTable(
+  "message_reactions",
+  {
+    messageId: uuid("message_id")
+      .references(() => messages.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => profiles.id, { onDelete: "cascade" })
+      .notNull(),
+    emoji: text("emoji").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.messageId, t.userId, t.emoji] })],
+);
+
 // Types
 export type Profile = typeof profiles.$inferSelect;
 export type Room = typeof rooms.$inferSelect;
@@ -120,3 +135,4 @@ export type RoomMember = typeof roomMembers.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type Block = typeof blocks.$inferSelect;
 export type Report = typeof reports.$inferSelect;
+export type MessageReaction = typeof messageReactions.$inferSelect;

@@ -18,9 +18,11 @@ import AvatarDisplay from './AvatarDisplay';
 type Props = {
   message: Message;
   isOwn: boolean;
+  currentUserId?: string;
   onLongPress: (message: Message, event: GestureResponderEvent) => void;
   onReplyQuotePress?: (messageId: string) => void;
   onSwipeReply?: (message: Message) => void;
+  onReact?: (message: Message, emoji: string) => void;
 };
 
 function formatTime(iso: string): string {
@@ -33,9 +35,11 @@ const SWIPE_THRESHOLD = 52;
 export default function MessageBubble({
   message,
   isOwn,
+  currentUserId,
   onLongPress,
   onReplyQuotePress,
   onSwipeReply,
+  onReact,
 }: Props) {
   const colors = useColors();
   const translateX = useRef(new Animated.Value(0)).current;
@@ -205,6 +209,28 @@ export default function MessageBubble({
             {formatTime(message.createdAt)}
           </Text>
         </TouchableOpacity>
+
+        {/* Reaction pills */}
+        {message.reactions && message.reactions.length > 0 && (
+          <View style={[styles.reactionsRow, isOwn ? styles.reactionsRowOwn : styles.reactionsRowOther]}>
+            {message.reactions.map((r) => {
+              const iMine = currentUserId ? r.userIds.includes(currentUserId) : false;
+              return (
+                <TouchableOpacity
+                  key={r.emoji}
+                  style={[styles.reactionPill, iMine && styles.reactionPillMine]}
+                  onPress={() => onReact?.(message, r.emoji)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.reactionEmoji}>{r.emoji}</Text>
+                  <Text style={[styles.reactionCount, iMine && styles.reactionCountMine]}>
+                    {r.count}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
       </Animated.View>
     </View>
   );
@@ -285,4 +311,34 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     fontStyle: 'italic',
   },
+  reactionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 4,
+  },
+  reactionsRowOwn: { justifyContent: 'flex-end' },
+  reactionsRowOther: { justifyContent: 'flex-start' },
+  reactionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1A1A1F',
+    borderWidth: 1,
+    borderColor: '#2A2A35',
+    borderRadius: 12,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    gap: 3,
+  },
+  reactionPillMine: {
+    backgroundColor: '#1E2A45',
+    borderColor: '#3B82F6',
+  },
+  reactionEmoji: { fontSize: 13 },
+  reactionCount: {
+    fontSize: 11,
+    fontFamily: 'Inter_500Medium',
+    color: '#8A8A9A',
+  },
+  reactionCountMine: { color: '#60A5FA' },
 });

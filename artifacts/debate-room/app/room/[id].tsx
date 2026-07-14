@@ -18,7 +18,7 @@ import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, type Message } from '@/lib/api';
+import { api, type Message, type Reaction } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import {
   getSocket,
@@ -131,6 +131,12 @@ export default function ChatRoomScreen() {
       );
     };
 
+    const onReactionUpdated = ({ messageId, reactions }: { messageId: string; reactions: Reaction[] }) => {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, reactions } : m)),
+      );
+    };
+
     const onOnlineCount = ({ count }: { count: number }) => {
       setOnlineCount(count);
     };
@@ -141,6 +147,7 @@ export default function ChatRoomScreen() {
 
     socket.on('new_message', onNewMessage);
     socket.on('message_deleted', onMessageDeleted);
+    socket.on('reaction_updated', onReactionUpdated);
     socket.on('online_count', onOnlineCount);
     socket.on('typing_update', onTypingUpdate);
 
@@ -148,6 +155,7 @@ export default function ChatRoomScreen() {
       leaveRoomChannel(roomId);
       socket.off('new_message', onNewMessage);
       socket.off('message_deleted', onMessageDeleted);
+      socket.off('reaction_updated', onReactionUpdated);
       socket.off('online_count', onOnlineCount);
       socket.off('typing_update', onTypingUpdate);
     };
@@ -233,6 +241,17 @@ export default function ChatRoomScreen() {
     setReplyTo(message);
   }, []);
 
+  const handleReact = useCallback(async (message: Message, emoji: string) => {
+    try {
+      const { reactions } = await api.messages.react(message.id, emoji);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === message.id ? { ...m, reactions } : m)),
+      );
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // Action sheet handlers
   const handleSheetReply = () => {
     if (sheetMessage) setReplyTo(sheetMessage);
@@ -277,8 +296,10 @@ export default function ChatRoomScreen() {
     <MessageBubble
       message={item}
       isOwn={item.senderId === user?.id}
+      currentUserId={user?.id}
       onLongPress={handleLongPress}
       onSwipeReply={handleSwipeReply}
+      onReact={handleReact}
       onReplyQuotePress={(msgId) => {
         const idx = messages.findIndex((m) => m.id === msgId);
         if (idx !== -1) {
@@ -423,7 +444,13 @@ export default function ChatRoomScreen() {
         visible={sheetVisible}
         message={sheetMessage}
         isOwn={!!isSheetOwn}
+        myReactions={
+          sheetMessage?.reactions
+            ?.filter((r) => user?.id && r.userIds.includes(user.id))
+            .map((r) => r.emoji) ?? []
+        }
         onClose={() => setSheetVisible(false)}
+        onReact={(emoji) => sheetMessage && handleReact(sheetMessage, emoji)}
         onReply={handleSheetReply}
         onCopy={handleSheetCopy}
         onDelete={handleSheetDelete}

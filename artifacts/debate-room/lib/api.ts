@@ -85,6 +85,12 @@ export type RoomMember = {
   joinedAt: string;
 };
 
+export type Reaction = {
+  emoji: string;
+  count: number;
+  userIds: string[];
+};
+
 export type Message = {
   id: string;
   roomId: string;
@@ -97,6 +103,7 @@ export type Message = {
   replyToSenderUsername: string | null;
   createdAt: string;
   isDeleted: boolean;
+  reactions: Reaction[];
 };
 
 export type BlockedUser = {
@@ -179,6 +186,11 @@ export const api = {
       request<{ success: boolean }>(`/messages/${messageId}/report`, {
         method: 'POST',
         body: JSON.stringify(data),
+      }),
+    react: (messageId: string, emoji: string) =>
+      request<{ reactions: Reaction[] }>(`/messages/${messageId}/react`, {
+        method: 'POST',
+        body: JSON.stringify({ emoji }),
       }),
   },
 

@@ -1,10 +1,28 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { messages, roomMembers, rooms, reports } from "@workspace/db";
-import { eq, and, sql, lt, desc } from "drizzle-orm";
+import { messages, roomMembers, rooms, reports, messageReactions } from "@workspace/db";
+import { eq, and, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/auth";
 
 const router = Router();
+
+// --- Reaction helpers ---
+
+type RawReaction = { emoji: string; userId: string };
+type ReactionSummary = { emoji: string; count: number; userIds: string[] };
+
+function groupReactions(raw: RawReaction[]): ReactionSummary[] {
+  const map = new Map<string, string[]>();
+  for (const r of raw) {
+    if (!map.has(r.emoji)) map.set(r.emoji, []);
+    map.get(r.emoji)!.push(r.userId);
+  }
+  return [...map.entries()].map(([emoji, userIds]) => ({
+    emoji,
+    count: userIds.length,
+    userIds,
+  }));
+}
 
 // Rate limiting: max 10 messages per 20 seconds per user per room
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -73,12 +91,20 @@ router.get("/rooms/:roomId/messages", requireAuth, async (req, res) => {
         p.username AS sender_username,
         p.avatar_key AS sender_avatar_key,
         reply.body AS reply_to_body,
-        reply_p.username AS reply_to_sender_username
+        reply_p.username AS reply_to_sender_username,
+        COALESCE(
+          json_agg(
+            json_build_object('emoji', mr.emoji, 'userId', mr.user_id)
+          ) FILTER (WHERE mr.emoji IS NOT NULL),
+          '[]'::json
+        ) AS raw_reactions
       FROM messages m
       JOIN profiles p ON p.id = m.sender_id
       LEFT JOIN messages reply ON reply.id = m.reply_to_id
       LEFT JOIN profiles reply_p ON reply_p.id = reply.sender_id
+      LEFT JOIN message_reactions mr ON mr.message_id = m.id
       WHERE ${whereClause}
+      GROUP BY m.id, p.username, p.avatar_key, reply.body, reply_p.username
       ORDER BY m.created_at DESC
       LIMIT ${limit + 1}
     `);
@@ -100,6 +126,7 @@ router.get("/rooms/:roomId/messages", requireAuth, async (req, res) => {
         replyToSenderUsername: m.reply_to_sender_username ?? null,
         createdAt: m.created_at,
         isDeleted: m.is_deleted,
+        reactions: groupReactions(m.raw_reactions ?? []),
       })),
       hasMore,
     });
@@ -192,6 +219,7 @@ router.post("/rooms/:roomId/messages", requireAuth, async (req, res) => {
       replyToSenderUsername: m.reply_to_sender_username ?? null,
       createdAt: m.created_at,
       isDeleted: false,
+      reactions: [],
     };
 
     // Broadcast via Socket.io if available
@@ -249,6 +277,91 @@ router.delete("/messages/:messageId", requireAuth, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     req.log.error({ err }, "deleteMessage error");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// POST /messages/:messageId/react  (toggle emoji reaction)
+router.post("/messages/:messageId/react", requireAuth, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.user!.id;
+    const { emoji } = req.body as { emoji: string };
+
+    if (!emoji || typeof emoji !== "string" || emoji.trim().length === 0) {
+      res.status(400).json({ error: "emoji required" });
+      return;
+    }
+
+    // Verify message exists
+    const message = await db.query.messages.findFirst({
+      where: eq(messages.id, messageId),
+    });
+    if (!message) {
+      res.status(404).json({ error: "Message not found" });
+      return;
+    }
+
+    // Verify user is a member of the room
+    const member = await db.query.roomMembers.findFirst({
+      where: and(
+        eq(roomMembers.roomId, message.roomId),
+        eq(roomMembers.userId, userId),
+      ),
+    });
+    if (!member) {
+      res.status(403).json({ error: "You must join this room to react" });
+      return;
+    }
+
+    // Check existing reaction
+    const existing = await db.query.messageReactions.findFirst({
+      where: and(
+        eq(messageReactions.messageId, messageId),
+        eq(messageReactions.userId, userId),
+        eq(messageReactions.emoji, emoji),
+      ),
+    });
+
+    if (existing) {
+      // Remove reaction (toggle off)
+      await db
+        .delete(messageReactions)
+        .where(
+          and(
+            eq(messageReactions.messageId, messageId),
+            eq(messageReactions.userId, userId),
+            eq(messageReactions.emoji, emoji),
+          ),
+        );
+    } else {
+      // Add reaction (toggle on)
+      await db.insert(messageReactions).values({ messageId, userId, emoji });
+    }
+
+    // Fetch updated reactions for this message
+    const rawReactions = await db.query.messageReactions.findMany({
+      where: eq(messageReactions.messageId, messageId),
+    });
+
+    const reactions = groupReactions(
+      rawReactions.map((r) => ({ emoji: r.emoji, userId: r.userId })),
+    );
+
+    // Broadcast via Socket.io
+    try {
+      const { getIO } = await import("../socket.js");
+      const io = getIO();
+      if (io) {
+        io.to(message.roomId).emit("reaction_updated", { messageId, reactions });
+      }
+    } catch {
+      // socket may not be initialized
+    }
+
+    res.json({ reactions });
+  } catch (err) {
+    req.log.error({ err }, "reactToMessage error");
     res.status(500).json({ error: "Internal server error" });
   }
 });

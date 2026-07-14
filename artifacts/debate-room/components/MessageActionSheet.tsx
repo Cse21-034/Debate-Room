@@ -12,24 +12,30 @@ import {
 import { Feather } from '@expo/vector-icons';
 import type { Message } from '@/lib/api';
 
+const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
+
 type Props = {
   visible: boolean;
   message: Message | null;
   isOwn: boolean;
+  myReactions: string[];
   onClose: () => void;
+  onReact: (emoji: string) => void;
   onReply: () => void;
   onCopy: () => void;
   onDelete: () => void;
   onReport: () => void;
 };
 
-const SHEET_HEIGHT = 280;
+const SHEET_HEIGHT = 340;
 
 export default function MessageActionSheet({
   visible,
   message,
   isOwn,
+  myReactions,
   onClose,
+  onReact,
   onReply,
   onCopy,
   onDelete,
@@ -84,6 +90,23 @@ export default function MessageActionSheet({
                 {message.body}
               </Text>
             </View>
+          </View>
+
+          {/* Emoji reaction row */}
+          <View style={styles.emojiRow}>
+            {QUICK_EMOJIS.map((emoji) => {
+              const active = myReactions.includes(emoji);
+              return (
+                <TouchableOpacity
+                  key={emoji}
+                  style={[styles.emojiBtn, active && styles.emojiBtnActive]}
+                  onPress={() => handleAction(() => onReact(emoji))}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.emojiText}>{emoji}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           <View style={styles.divider} />
@@ -184,6 +207,26 @@ const styles = StyleSheet.create({
     color: '#8A8A9A',
     lineHeight: 20,
   },
+  emojiRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  emojiBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#2A2A35',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emojiBtnActive: {
+    backgroundColor: '#3B4A6B',
+    borderWidth: 2,
+    borderColor: '#60A5FA',
+  },
+  emojiText: { fontSize: 22 },
   divider: { height: 1, backgroundColor: '#2A2A35' },
   action: {
     flexDirection: 'row',

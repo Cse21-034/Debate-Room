@@ -445,6 +445,33 @@ paths:
               schema:
                 $ref: "#/components/schemas/SuccessResponse"
 
+  /messages/{messageId}/react:
+    post:
+      operationId: reactToMessage
+      tags: [messages]
+      summary: Toggle an emoji reaction on a message
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReactToMessageRequest"
+      responses:
+        "200":
+          description: Updated reactions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReactToMessageResponse"
+
   /messages/{messageId}/report:
     post:
       operationId: reportMessage
@@ -795,6 +822,40 @@ components:
         - role
         - joinedAt
 
+    MessageReaction:
+      type: object
+      properties:
+        emoji:
+          type: string
+        count:
+          type: integer
+        userIds:
+          type: array
+          items:
+            type: string
+      required:
+        - emoji
+        - count
+        - userIds
+
+    ReactToMessageRequest:
+      type: object
+      properties:
+        emoji:
+          type: string
+      required:
+        - emoji
+
+    ReactToMessageResponse:
+      type: object
+      properties:
+        reactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/MessageReaction"
+      required:
+        - reactions
+
     Message:
       type: object
       properties:
@@ -824,6 +885,10 @@ components:
           format: date-time
         isDeleted:
           type: boolean
+        reactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/MessageReaction"
       required:
         - id
         - roomId
@@ -833,6 +898,7 @@ components:
         - body
         - createdAt
         - isDeleted
+        - reactions
 
     MessagesResponse:
       type: object
