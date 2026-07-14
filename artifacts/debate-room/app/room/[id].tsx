@@ -29,6 +29,7 @@ import {
 } from '@/lib/socket';
 import MessageBubble from '@/components/MessageBubble';
 import MessageActionSheet from '@/components/MessageActionSheet';
+import ReportModal from '@/components/ReportModal';
 import AvatarDisplay from '@/components/AvatarDisplay';
 
 const BANNED_WORDS = ['fuck', 'shit', 'bitch', 'nigger', 'faggot'];
@@ -61,6 +62,10 @@ export default function ChatRoomScreen() {
   // Action sheet state
   const [sheetMessage, setSheetMessage] = useState<Message | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
+
+  // Report modal state
+  const [reportMessage, setReportMessage] = useState<Message | null>(null);
+  const [reportVisible, setReportVisible] = useState(false);
 
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingRef = useRef(false);
@@ -281,12 +286,8 @@ export default function ChatRoomScreen() {
 
   const handleSheetReport = () => {
     if (!sheetMessage) return;
-    Alert.alert('Report message', 'Why are you reporting this?', [
-      { text: 'Spam', onPress: () => api.messages.report(sheetMessage.id, { reason: 'spam' }) },
-      { text: 'Harassment', onPress: () => api.messages.report(sheetMessage.id, { reason: 'harassment' }) },
-      { text: 'Hate speech', onPress: () => api.messages.report(sheetMessage.id, { reason: 'hate' }) },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    setReportMessage(sheetMessage);
+    setReportVisible(true);
   };
 
   const isMember = room?.isMember ?? false;
@@ -438,6 +439,13 @@ export default function ChatRoomScreen() {
           </View>
         )}
       </KeyboardAvoidingView>
+
+      {/* Report modal */}
+      <ReportModal
+        visible={reportVisible}
+        message={reportMessage}
+        onClose={() => setReportVisible(false)}
+      />
 
       {/* Message action sheet */}
       <MessageActionSheet
