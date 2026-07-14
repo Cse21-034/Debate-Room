@@ -6,10 +6,11 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  ActivityIndicator,
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
@@ -21,6 +22,8 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, logout } = useAuth();
+  const queryClient = useQueryClient();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const { data: myRoomsData } = useQuery({
     queryKey: ['rooms', 'mine'],
@@ -35,7 +38,19 @@ export default function ProfileScreen() {
   const handleLogout = () => {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: () => logout() },
+      {
+        text: 'Sign out',
+        style: 'destructive',
+        onPress: async () => {
+          setIsLoggingOut(true);
+          try {
+            await logout();
+            queryClient.clear();
+          } finally {
+            setIsLoggingOut(false);
+          }
+        },
+      },
     ]);
   };
 
@@ -49,8 +64,14 @@ export default function ProfileScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            await api.auth.deleteAccount();
-            await logout();
+            setIsLoggingOut(true);
+            try {
+              await api.auth.deleteAccount();
+              await logout();
+              queryClient.clear();
+            } finally {
+              setIsLoggingOut(false);
+            }
           },
         },
       ],
@@ -126,18 +147,26 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.actionItem}
+          style={[styles.actionItem, isLoggingOut && styles.actionItemDisabled]}
           onPress={handleLogout}
           activeOpacity={0.7}
+          disabled={isLoggingOut}
         >
-          <Feather name="log-out" size={18} color="#EF4444" />
-          <Text style={[styles.actionText, { color: '#EF4444' }]}>Sign out</Text>
+          {isLoggingOut ? (
+            <ActivityIndicator size="small" color="#EF4444" />
+          ) : (
+            <Feather name="log-out" size={18} color="#EF4444" />
+          )}
+          <Text style={[styles.actionText, { color: '#EF4444' }]}>
+            {isLoggingOut ? 'Signing out…' : 'Sign out'}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.actionItem}
+          style={[styles.actionItem, isLoggingOut && styles.actionItemDisabled]}
           onPress={handleDeleteAccount}
           activeOpacity={0.7}
+          disabled={isLoggingOut}
         >
           <Feather name="trash-2" size={18} color="#EF4444" />
           <Text style={[styles.actionText, { color: '#EF4444' }]}>Delete account</Text>
@@ -201,4 +230,5 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   actionText: { fontSize: 15, fontFamily: 'Inter_500Medium', color: '#F0F0F5' },
+  actionItemDisabled: { opacity: 0.5 },
 });
