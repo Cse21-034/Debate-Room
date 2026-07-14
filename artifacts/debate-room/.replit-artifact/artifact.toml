@@ -1,0 +1,23 @@
+kind = "mobile"
+previewPath = "/"
+title = "DebateRoom"
+version = "1.0.0"
+id = "artifacts/debate-room"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/" ]
+localPort = 21341
+
+[services.development]
+run = "pnpm --filter @workspace/debate-room run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/debate-room", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/debate-room", "run", "serve" ]
+
+[services.env]
+PORT = "21341"
+BASE_PATH = "/"

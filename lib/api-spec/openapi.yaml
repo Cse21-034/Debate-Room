@@ -3,20 +3,23 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: DebateRoom API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: auth
+  - name: rooms
+  - name: messages
+  - name: blocks
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,7 +27,511 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Username or email already taken
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+    patch:
+      operationId: updateMe
+      tags: [auth]
+      summary: Update current user profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+
+  /auth/delete-account:
+    delete:
+      operationId: deleteAccount
+      tags: [auth]
+      summary: Delete current user account
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Account deleted
+
+  /rooms:
+    get:
+      operationId: listRooms
+      tags: [rooms]
+      summary: List debate rooms
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          schema:
+            $ref: "#/components/schemas/RoomCategory"
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: myRooms
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Rooms list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomsListResponse"
+    post:
+      operationId: createRoom
+      tags: [rooms]
+      summary: Create a debate room
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoomRequest"
+      responses:
+        "201":
+          description: Room created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+
+  /rooms/similar:
+    get:
+      operationId: findSimilarRooms
+      tags: [rooms]
+      summary: Find rooms with similar titles in a category
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: title
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: category
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/RoomCategory"
+      responses:
+        "200":
+          description: Similar rooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Room"
+
+  /rooms/{roomId}:
+    get:
+      operationId: getRoom
+      tags: [rooms]
+      summary: Get room details
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Room details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateRoom
+      tags: [rooms]
+      summary: Update room (owner only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRoomRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+    delete:
+      operationId: deleteRoom
+      tags: [rooms]
+      summary: Delete room (owner only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  /rooms/{roomId}/join:
+    post:
+      operationId: joinRoom
+      tags: [rooms]
+      summary: Join a room
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Joined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /rooms/{roomId}/leave:
+    post:
+      operationId: leaveRoom
+      tags: [rooms]
+      summary: Leave a room
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Left
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /rooms/{roomId}/members:
+    get:
+      operationId: getRoomMembers
+      tags: [rooms]
+      summary: Get room members
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoomMember"
+
+  /rooms/{roomId}/members/{userId}:
+    delete:
+      operationId: removeRoomMember
+      tags: [rooms]
+      summary: Remove a member (owner only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Removed
+
+  /rooms/{roomId}/messages:
+    get:
+      operationId: listMessages
+      tags: [messages]
+      summary: List messages in a room (paginated)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: before
+          in: query
+          description: Cursor - load messages before this message ID
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessagesResponse"
+    post:
+      operationId: sendMessage
+      tags: [messages]
+      summary: Send a message
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageRequest"
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
+  /messages/{messageId}:
+    delete:
+      operationId: deleteMessage
+      tags: [messages]
+      summary: Soft-delete a message (sender only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /messages/{messageId}/report:
+    post:
+      operationId: reportMessage
+      tags: [messages]
+      summary: Report a message
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportMessageRequest"
+      responses:
+        "201":
+          description: Reported
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /blocks:
+    get:
+      operationId: listBlocks
+      tags: [blocks]
+      summary: List blocked users
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Blocked users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BlockedUser"
+    post:
+      operationId: blockUser
+      tags: [blocks]
+      summary: Block a user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BlockUserRequest"
+      responses:
+        "201":
+          description: Blocked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /blocks/{userId}:
+    delete:
+      operationId: unblockUser
+      tags: [blocks]
+      summary: Unblock a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Unblocked
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +541,363 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success
+
+    RoomCategory:
+      type: string
+      enum:
+        - love
+        - romance
+        - money
+        - business
+        - religion
+        - politics
+        - sports
+        - technology
+        - lifestyle
+        - other
+
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+        avatarKey:
+          type: string
+      required:
+        - email
+        - password
+        - username
+        - avatarKey
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/Profile"
+      required:
+        - token
+        - user
+
+    Profile:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        username:
+          type: string
+        avatarKey:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - email
+        - username
+        - avatarKey
+        - createdAt
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+        avatarKey:
+          type: string
+
+    Room:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        category:
+          $ref: "#/components/schemas/RoomCategory"
+        ownerId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        lastActivityAt:
+          type: string
+          format: date-time
+        isArchived:
+          type: boolean
+        memberCount:
+          type: integer
+        lastMessage:
+          type: string
+          nullable: true
+        isMember:
+          type: boolean
+        isOwner:
+          type: boolean
+      required:
+        - id
+        - title
+        - category
+        - ownerId
+        - createdAt
+        - lastActivityAt
+        - isArchived
+        - memberCount
+        - isMember
+        - isOwner
+
+    RoomDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        category:
+          $ref: "#/components/schemas/RoomCategory"
+        ownerId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        lastActivityAt:
+          type: string
+          format: date-time
+        isArchived:
+          type: boolean
+        memberCount:
+          type: integer
+        isMember:
+          type: boolean
+        isOwner:
+          type: boolean
+        owner:
+          $ref: "#/components/schemas/Profile"
+      required:
+        - id
+        - title
+        - category
+        - ownerId
+        - createdAt
+        - lastActivityAt
+        - isArchived
+        - memberCount
+        - isMember
+        - isOwner
+        - owner
+
+    RoomsListResponse:
+      type: object
+      properties:
+        rooms:
+          type: array
+          items:
+            $ref: "#/components/schemas/Room"
+        total:
+          type: integer
+        hasMore:
+          type: boolean
+      required:
+        - rooms
+        - total
+        - hasMore
+
+    CreateRoomRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 300
+        category:
+          $ref: "#/components/schemas/RoomCategory"
+      required:
+        - title
+        - category
+
+    UpdateRoomRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 300
+
+    RoomMember:
+      type: object
+      properties:
+        userId:
+          type: string
+        username:
+          type: string
+        avatarKey:
+          type: string
+        role:
+          type: string
+          enum:
+            - owner
+            - member
+        joinedAt:
+          type: string
+          format: date-time
+      required:
+        - userId
+        - username
+        - avatarKey
+        - role
+        - joinedAt
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        roomId:
+          type: string
+        senderId:
+          type: string
+        senderUsername:
+          type: string
+        senderAvatarKey:
+          type: string
+        body:
+          type: string
+        replyToId:
+          type: string
+          nullable: true
+        replyToBody:
+          type: string
+          nullable: true
+        replyToSenderUsername:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        isDeleted:
+          type: boolean
+      required:
+        - id
+        - roomId
+        - senderId
+        - senderUsername
+        - senderAvatarKey
+        - body
+        - createdAt
+        - isDeleted
+
+    MessagesResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+        hasMore:
+          type: boolean
+      required:
+        - messages
+        - hasMore
+
+    SendMessageRequest:
+      type: object
+      properties:
+        body:
+          type: string
+          maxLength: 2000
+        replyToId:
+          type: string
+          nullable: true
+      required:
+        - body
+
+    ReportMessageRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          enum:
+            - spam
+            - harassment
+            - hate
+            - other
+        note:
+          type: string
+          nullable: true
+      required:
+        - reason
+
+    BlockUserRequest:
+      type: object
+      properties:
+        blockedId:
+          type: string
+      required:
+        - blockedId
+
+    BlockedUser:
+      type: object
+      properties:
+        userId:
+          type: string
+        username:
+          type: string
+        avatarKey:
+          type: string
+        blockedAt:
+          type: string
+          format: date-time
+      required:
+        - userId
+        - username
+        - avatarKey
+        - blockedAt
