@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   Platform,
   Clipboard,
-  GestureResponderEvent,
+  type GestureResponderEvent,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,6 +28,7 @@ import {
   emitTypingStop,
 } from '@/lib/socket';
 import MessageBubble from '@/components/MessageBubble';
+import MessageActionSheet from '@/components/MessageActionSheet';
 import AvatarDisplay from '@/components/AvatarDisplay';
 
 const BANNED_WORDS = ['fuck', 'shit', 'bitch', 'nigger', 'faggot'];
@@ -56,6 +57,10 @@ export default function ChatRoomScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+
+  // Action sheet state
+  const [sheetMessage, setSheetMessage] = useState<Message | null>(null);
+  const [sheetVisible, setSheetVisible] = useState(false);
 
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingRef = useRef(false);
@@ -120,7 +125,9 @@ export default function ChatRoomScreen() {
 
     const onMessageDeleted = ({ messageId }: { messageId: string }) => {
       setMessages((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, isDeleted: true, body: '[message deleted]' } : m)),
+        prev.map((m) =>
+          m.id === messageId ? { ...m, isDeleted: true, body: '[message deleted]' } : m,
+        ),
       );
     };
 
@@ -195,7 +202,9 @@ export default function ChatRoomScreen() {
         body,
         replyToId: currentReply?.id ?? null,
       });
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
     } catch (err: any) {
       Alert.alert('Error', err.message ?? 'Failed to send message');
     } finally {
@@ -203,62 +212,73 @@ export default function ChatRoomScreen() {
     }
   };
 
-  const handleLongPress = (message: Message, event: GestureResponderEvent) => {
-    if (message.isDeleted) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  // Opens the action sheet
+  const openSheet = (message: Message) => {
+    setSheetMessage(message);
+    setSheetVisible(true);
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+  };
 
-    const isOwn = message.senderId === user?.id;
-    const actions: { text: string; onPress: () => void; style?: 'default' | 'cancel' | 'destructive' }[] = [
-      { text: 'Reply', onPress: () => setReplyTo(message) },
+  const handleLongPress = useCallback(
+    (message: Message, _event: GestureResponderEvent) => {
+      if (message.isDeleted) return;
+      openSheet(message);
+    },
+    [],
+  );
+
+  const handleSwipeReply = useCallback((message: Message) => {
+    setReplyTo(message);
+  }, []);
+
+  // Action sheet handlers
+  const handleSheetReply = () => {
+    if (sheetMessage) setReplyTo(sheetMessage);
+  };
+
+  const handleSheetCopy = () => {
+    if (sheetMessage) Clipboard.setString(sheetMessage.body);
+  };
+
+  const handleSheetDelete = () => {
+    if (!sheetMessage) return;
+    Alert.alert('Delete message', 'Delete this message for everyone?', [
+      { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Copy',
-        onPress: () => {
-          Clipboard.setString(message.body);
-        },
-      },
-    ];
-    if (isOwn) {
-      actions.push({
         text: 'Delete',
         style: 'destructive',
-        onPress: () => {
-          Alert.alert('Delete message', 'Delete this message for everyone?', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Delete',
-              style: 'destructive',
-              onPress: async () => {
-                await api.messages.delete(message.id);
-              },
-            },
-          ]);
+        onPress: async () => {
+          try {
+            await api.messages.delete(sheetMessage.id);
+          } catch (err: any) {
+            Alert.alert('Error', err.message ?? 'Failed to delete');
+          }
         },
-      });
-    } else {
-      actions.push({
-        text: 'Report',
-        onPress: () => {
-          Alert.alert('Report message', 'Why are you reporting this?', [
-            { text: 'Spam', onPress: () => api.messages.report(message.id, { reason: 'spam' }) },
-            { text: 'Harassment', onPress: () => api.messages.report(message.id, { reason: 'harassment' }) },
-            { text: 'Hate speech', onPress: () => api.messages.report(message.id, { reason: 'hate' }) },
-            { text: 'Cancel', style: 'cancel' },
-          ]);
-        },
-      });
-    }
-    actions.push({ text: 'Cancel', style: 'cancel', onPress: () => {} });
+      },
+    ]);
+  };
 
-    Alert.alert('Message', undefined, actions as any);
+  const handleSheetReport = () => {
+    if (!sheetMessage) return;
+    Alert.alert('Report message', 'Why are you reporting this?', [
+      { text: 'Spam', onPress: () => api.messages.report(sheetMessage.id, { reason: 'spam' }) },
+      { text: 'Harassment', onPress: () => api.messages.report(sheetMessage.id, { reason: 'harassment' }) },
+      { text: 'Hate speech', onPress: () => api.messages.report(sheetMessage.id, { reason: 'hate' }) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   const isMember = room?.isMember ?? false;
+  const isSheetOwn = sheetMessage?.senderId === user?.id;
 
   const renderItem = ({ item }: { item: Message }) => (
     <MessageBubble
       message={item}
       isOwn={item.senderId === user?.id}
       onLongPress={handleLongPress}
+      onSwipeReply={handleSwipeReply}
       onReplyQuotePress={(msgId) => {
         const idx = messages.findIndex((m) => m.id === msgId);
         if (idx !== -1) {
@@ -343,7 +363,7 @@ export default function ChatRoomScreen() {
                   <Text style={styles.replyToName}>{replyTo.senderUsername}</Text>
                   <Text style={styles.replyToBody} numberOfLines={1}>{replyTo.body}</Text>
                 </View>
-                <TouchableOpacity onPress={() => setReplyTo(null)} activeOpacity={0.7}>
+                <TouchableOpacity onPress={() => setReplyTo(null)} activeOpacity={0.7} hitSlop={8}>
                   <Feather name="x" size={18} color="#8A8A9A" />
                 </TouchableOpacity>
               </View>
@@ -397,6 +417,18 @@ export default function ChatRoomScreen() {
           </View>
         )}
       </KeyboardAvoidingView>
+
+      {/* Message action sheet */}
+      <MessageActionSheet
+        visible={sheetVisible}
+        message={sheetMessage}
+        isOwn={!!isSheetOwn}
+        onClose={() => setSheetVisible(false)}
+        onReply={handleSheetReply}
+        onCopy={handleSheetCopy}
+        onDelete={handleSheetDelete}
+        onReport={handleSheetReport}
+      />
     </View>
   );
 }
