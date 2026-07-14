@@ -1,6 +1,6 @@
-# [Project name]
+# Debate Room
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A real-time debate platform where users can join rooms, argue positions, and engage in structured live debates.
 
 ## Run & Operate
 
