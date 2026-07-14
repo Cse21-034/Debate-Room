@@ -1,0 +1,99 @@
+# DebateRoom — Full Build Prompt for AI Code Generators
+
+> **How to use this document:** Paste the MASTER PROMPT into Claude Code / Replit Agent / v0.
+> Then use the STAGE PROMPTS one at a time to build and fix each part.
+> Do NOT expect a perfect full app from one prompt — build in stages, test each stage.
+
+---
+
+## MASTER PROMPT (paste this first)
+
+Build a complete, production-ready mobile chat application called **DebateRoom** — a real-time, topic-based debate chat app (like WhatsApp groups, but every group is a public debate topic).
+
+### Tech Stack (use exactly this)
+- **Frontend:** React Native with **Expo** (managed workflow, TypeScript)
+- **Backend:** **Supabase** (Postgres database, Supabase Auth, Supabase Realtime for live messages)
+- **Push notifications:** Expo Notifications
+- **Navigation:** React Navigation (bottom tabs + stack)
+- **State:** React Query (TanStack Query) for server state, Zustand for local state
+- No custom Node server — the app talks directly to Supabase. Use Supabase Row Level Security (RLS) policies for all authorization.
+
+### Core Concept
+- Any user can create a **debate room** with a title, category, and optional description.
+- Anyone can browse rooms, join, and chat in **real time**.
+- **Text only.** No image, file, or media upload anywhere in the app.
+- Rooms are free-flow group chats (no sides, no rounds).
+
+### Screens (build all of these)
+1. **Auth screens:** Sign up / Log in with email + password (Supabase Auth). On first sign-up: choose a unique username and pick one of 12 preset avatars (colored initials or emoji avatars — no photo upload).
+2. **Home (Rooms List):** Scrollable list of debate rooms, sorted by most recent activity. Each card shows: topic title, category chip, member count, online count, last message preview, last activity time. Pull-to-refresh. Category filter chips across the top: All, Love, Romance, Money, Business, Religion, Politics, Sports, Technology, Lifestyle, Other. A search bar filters rooms by title.
+3. **Create Room:** Form with title (max 100 chars), category picker, optional description (max 300 chars). Before creating, query for existing rooms with similar titles in the same category and show "Similar debates already exist — join instead?" with tappable results. On create, the creator is auto-joined as room **owner**.
+4. **Chat Room screen:** WhatsApp-style chat UI. My messages right-aligned, others left-aligned with username + avatar. Real-time message stream via Supabase Realtime subscription. **Reply-to-message:** long-press any message → Reply → quoted preview shows above the input and inside the sent bubble; tapping the quote scrolls to the original message. Long-press also offers: Copy, Report, Delete (own messages only, soft-delete shows "message deleted"). Infinite scroll pagination upward, 30 messages per page. New joiners can read full history. Typing indicator ("Sarah is typing…"). Online member count in the header. Header tap opens Room Info.
+5. **Room Info screen:** Topic, description, category, created date, member list with online dots. Buttons: Join / Leave. Room owner additionally gets: Edit title/description, Remove member, Delete room.
+6. **Profile screen:** My username, avatar, joined rooms list, rooms I created, log out, delete account.
+7. **Blocked users screen** (inside Profile): list + unblock.
+
+### Data Model (Postgres tables in Supabase)
+- `profiles`: id (uuid, = auth.users id), username (unique, citext), avatar_key (text), created_at
+- `rooms`: id, title, description, category (enum), owner_id → profiles, created_at, last_activity_at, is_archived (bool, default false)
+- `room_members`: room_id, user_id, role ('owner' | 'member'), joined_at, PRIMARY KEY (room_id, user_id)
+- `messages`: id, room_id, sender_id, body (text, max 2000 chars), reply_to_id (nullable self-reference), created_at, is_deleted (bool)
+- `blocks`: blocker_id, blocked_id, created_at
+- `reports`: id, reporter_id, message_id, reason (enum: spam | harassment | hate | other), note, created_at, status ('open' | 'resolved')
+
+### Rules & Behaviors
+- Updating `last_activity_at` on every new message (Postgres trigger).
+- Rooms auto-archive after 14 days of no messages (scheduled Supabase Edge Function / pg_cron). Archived rooms are hidden from Home but still readable via direct link from "My rooms."
+- Blocked users' messages are hidden client-side for the blocker.
+- Basic profanity filter: maintain a banned-words list; reject or mask matching messages client-side before send.
+- RLS: anyone authenticated can read rooms and messages; only members can post; only the sender can soft-delete their message; only the owner can edit/delete a room or remove members.
+- Push notification when someone replies to my message, and (throttled, max 1 per room per 10 min) when a room I joined becomes active.
+- Rate limit: max 10 messages per 20 seconds per user per room (enforce with a Postgres function).
+- Empty states everywhere (no rooms, no messages, no results), loading skeletons, and error toasts.
+- Dark theme by default, clean modern UI, rounded message bubbles, smooth 60fps list scrolling using FlashList.
+
+### Deliverables
+- Full Expo project with clear folder structure (`/app`, `/components`, `/lib`, `/hooks`)
+- Complete SQL migration file for all tables, triggers, RLS policies
+- A `README.md` with exact setup steps: Supabase project creation, env variables, running on Expo Go
+- Seed script that creates 8 sample rooms across categories with sample messages
+
+Build this now, starting with the project scaffold, Supabase schema, and auth flow.
+
+---
+
+## STAGE PROMPTS (paste one at a time, after the master prompt)
+
+### Stage 1 — Scaffold + Auth
+"Set up the Expo TypeScript project with React Navigation (auth stack + main bottom tabs), Supabase client in /lib/supabase.ts using env vars, and the full auth flow: sign up, log in, username + avatar picker on first login, session persistence, log out. Give me the SQL for the profiles table with RLS and a trigger that creates a profile row on new auth user."
+
+### Stage 2 — Rooms
+"Implement the Home rooms list (FlashList, category filter chips, search, pull-to-refresh, sorted by last_activity_at), the Create Room screen with duplicate-topic detection, and the Room Info screen with join/leave and owner controls. Include SQL for rooms and room_members with RLS policies."
+
+### Stage 3 — Real-time Chat
+"Implement the Chat Room screen: Supabase Realtime subscription for new messages, upward pagination (30/page), reply-to-message with quoted bubbles and scroll-to-original, long-press menu (Reply, Copy, Delete own, Report), soft delete, typing indicator via Realtime presence, online count. Include SQL for messages table, the last_activity trigger, and the rate-limit function."
+
+### Stage 4 — Safety & Notifications
+"Implement block/unblock (hide blocked users' messages), report message flow writing to the reports table, the client-side profanity filter, and Expo push notifications for replies and room activity (throttled). Include the SQL for blocks and reports with RLS."
+
+### Stage 5 — Polish & Ship
+"Add empty states, loading skeletons, error handling toasts, the dark theme pass, the auto-archive Edge Function with pg_cron schedule, the seed script with 8 sample rooms, and write the final README with step-by-step setup and EAS build instructions for Android APK and iOS."
+
+---
+
+## DEBUGGING PROMPTS (use when things break)
+
+- "Messages are not appearing in real time. Check the Supabase Realtime subscription: confirm the messages table has replication enabled, the channel filters by room_id, and the subscription is cleaned up on unmount. Fix it."
+- "I get an RLS policy violation when posting a message. Review all RLS policies on messages and room_members and fix so that only room members can insert."
+- "The chat list scroll jumps when new messages arrive. Fix scroll anchoring: stay pinned to bottom only if the user is already at the bottom."
+
+---
+
+## NOTES FOR YOU (not part of the prompt)
+
+- **Best tool fit:** Claude Code or Replit Agent for this (full mobile app + database). v0 is web-only — use it just to prototype screen designs if you want.
+- **Test on your phone free:** install the **Expo Go** app, scan the QR code the dev server prints.
+- **Supabase free tier** covers development and early users. Realtime, auth, and Postgres are all included.
+- **Why Supabase over Firebase here:** AI code generators handle SQL schemas + RLS very reliably, and Replit integrates Supabase natively. Firebase also works if your tool prefers it — say "use Firebase Auth + Firestore instead" and keep everything else the same.
+- **Future-proofing:** when you're ready for live audio/video, add **LiveKit** or **Agora** — both have Expo/React Native SDKs and bolt onto this architecture without rewrites.
+- Ship Android first (Play Store, $25 one-time). iOS needs an Apple Developer account ($99/yr) and EAS Build.
