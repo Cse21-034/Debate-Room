@@ -6,20 +6,19 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { useColors } from '@/hooks/useColors';
 
 export const CATEGORIES = [
-  { key: 'all', label: 'All' },
-  { key: 'love', label: 'Love' },
-  { key: 'romance', label: 'Romance' },
-  { key: 'money', label: 'Money' },
-  { key: 'business', label: 'Business' },
-  { key: 'religion', label: 'Religion' },
-  { key: 'politics', label: 'Politics' },
-  { key: 'sports', label: 'Sports' },
-  { key: 'technology', label: 'Technology' },
-  { key: 'lifestyle', label: 'Lifestyle' },
-  { key: 'other', label: 'Other' },
+  { key: 'all',        label: 'All',        emoji: '✨' },
+  { key: 'love',       label: 'Love',       emoji: '❤️' },
+  { key: 'romance',    label: 'Romance',    emoji: '💫' },
+  { key: 'money',      label: 'Money',      emoji: '💰' },
+  { key: 'business',   label: 'Business',   emoji: '💼' },
+  { key: 'religion',   label: 'Religion',   emoji: '🕊️' },
+  { key: 'politics',   label: 'Politics',   emoji: '🏛️' },
+  { key: 'sports',     label: 'Sports',     emoji: '⚡' },
+  { key: 'technology', label: 'Tech',       emoji: '🤖' },
+  { key: 'lifestyle',  label: 'Lifestyle',  emoji: '🌿' },
+  { key: 'other',      label: 'Other',      emoji: '💬' },
 ];
 
 type Props = {
@@ -28,8 +27,6 @@ type Props = {
 };
 
 export default function CategoryFilter({ selected, onSelect }: Props) {
-  const colors = useColors();
-
   return (
     <ScrollView
       horizontal
@@ -42,26 +39,14 @@ export default function CategoryFilter({ selected, onSelect }: Props) {
           <TouchableOpacity
             key={cat.key}
             onPress={() => onSelect(cat.key)}
-            style={[
-              styles.chip,
-              {
-                backgroundColor: active ? colors.primary : colors.muted,
-                borderColor: active ? colors.primary : colors.border,
-              },
-            ]}
+            style={[styles.card, active && styles.cardActive]}
             activeOpacity={0.7}
           >
-            <Text
-              style={[
-                styles.label,
-                {
-                  color: active ? '#FFFFFF' : colors.mutedForeground,
-                  fontFamily: active ? 'Inter_600SemiBold' : 'Inter_400Regular',
-                },
-              ]}
-            >
+            <Text style={styles.emoji}>{cat.emoji}</Text>
+            <Text style={[styles.label, active && styles.labelActive]}>
               {cat.label}
             </Text>
+            {active && <View style={styles.activeDot} />}
           </TouchableOpacity>
         );
       })}
@@ -72,16 +57,47 @@ export default function CategoryFilter({ selected, onSelect }: Props) {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     gap: 8,
+    alignItems: 'center',
   },
-  chip: {
+  card: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
     paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: '#1A1A1F',
     borderWidth: 1,
+    borderColor: '#2A2A35',
+    minWidth: 64,
+  },
+  cardActive: {
+    backgroundColor: '#1E2D4D',
+    borderColor: '#3B82F6',
+  },
+  emoji: {
+    fontSize: 20,
+    lineHeight: 24,
   },
   label: {
-    fontSize: 13,
+    fontSize: 11,
+    fontFamily: 'Inter_500Medium',
+    color: '#8A8A9A',
+    letterSpacing: 0.2,
+  },
+  labelActive: {
+    color: '#60A5FA',
+    fontFamily: 'Inter_600SemiBold',
+  },
+  activeDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#3B82F6',
   },
 });
