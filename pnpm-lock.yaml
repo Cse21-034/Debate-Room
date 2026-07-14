@@ -235,8 +235,8 @@ importers:
   artifacts/debate-room:
     dependencies:
       expo-secure-store:
-        specifier: ^57.0.0
-        version: 57.0.0(expo@54.0.35)
+        specifier: ^15.0.8
+        version: 15.0.8(expo@54.0.35)
       socket.io-client:
         specifier: ^4.8.3
         version: 4.8.3
@@ -3488,8 +3488,8 @@ packages:
       react-server-dom-webpack:
         optional: true
 
-  expo-secure-store@57.0.0:
-    resolution: {integrity: sha512-vkP16rhW7b4bljW5BC4kKXBpNxQ0O1E9SpI5NIfh2biZnszLTpI/gUF4oBsvOY2nvkh7oXS2ERuUoA8cuS8FWQ==}
+  expo-secure-store@15.0.8:
+    resolution: {integrity: sha512-lHnzvRajBu4u+P99+0GEMijQMFCOYpWRO4dWsXSuMt77+THPIGjzNvVKrGSl6mMrLsfVaKL8BpwYZLGlgA+zAw==}
     peerDependencies:
       expo: '*'
 
@@ -9401,7 +9401,7 @@ snapshots:
       - '@types/react-dom'
       - supports-color
 
-  expo-secure-store@57.0.0(expo@54.0.35):
+  expo-secure-store@15.0.8(expo@54.0.35):
     dependencies:
       expo: 54.0.35(@babel/core@7.29.7)(@expo/metro-runtime@6.1.2)(expo-router@6.0.24)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
 

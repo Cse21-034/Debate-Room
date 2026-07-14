@@ -1,59 +1,98 @@
-/**
- * Semantic design tokens for the mobile app.
- *
- * These tokens mirror the naming conventions used in web artifacts (index.css)
- * so that multi-artifact projects share a cohesive visual identity.
- *
- * Replace the placeholder values below with values that match the project's
- * brand. If a sibling web artifact exists, read its index.css and convert the
- * HSL values to hex so both artifacts use the same palette.
- *
- * To add dark mode, add a `dark` key with the same token names.
- * The useColors() hook will automatically pick it up.
- */
+// DebateRoom — forced dark theme (both light and dark keys are identical)
+const dark = {
+  text: '#F0F0F5',
+  tint: '#3B82F6',
+
+  background: '#0D0D0F',
+  foreground: '#F0F0F5',
+
+  card: '#1A1A1F',
+  cardForeground: '#F0F0F5',
+
+  primary: '#3B82F6',
+  primaryForeground: '#FFFFFF',
+
+  secondary: '#F97316',
+  secondaryForeground: '#FFFFFF',
+
+  muted: '#2A2A35',
+  mutedForeground: '#8A8A9A',
+
+  accent: '#1E293B',
+  accentForeground: '#60A5FA',
+
+  destructive: '#EF4444',
+  destructiveForeground: '#FFFFFF',
+
+  border: '#2A2A35',
+  input: '#2A2A35',
+
+  // Chat-specific
+  myBubble: '#3B82F6',
+  myBubbleText: '#FFFFFF',
+  otherBubble: '#1E1E28',
+  otherBubbleText: '#F0F0F5',
+  onlineGreen: '#10B981',
+  warningAmber: '#F59E0B',
+};
 
 const colors = {
-  light: {
-    // Legacy aliases (kept for backward compatibility)
-    text: '#0a0a0a',
-    tint: '#2f95dc',
+  light: dark,
+  dark: {
+    text: '#F0F0F5',
+    tint: '#3B82F6',
 
-    // Core surfaces
-    background: '#ffffff',
-    foreground: '#0a0a0a',
+    background: '#0D0D0F',
+    foreground: '#F0F0F5',
 
-    // Cards / elevated surfaces
-    card: '#f9f9f9',
-    cardForeground: '#0a0a0a',
+    card: '#1A1A1F',
+    cardForeground: '#F0F0F5',
 
-    // Primary action color (buttons, links, active states)
-    primary: '#2f95dc',
-    primaryForeground: '#ffffff',
+    primary: '#3B82F6',
+    primaryForeground: '#FFFFFF',
 
-    // Secondary / less-emphasis interactive surfaces
-    secondary: '#f0f0f0',
-    secondaryForeground: '#1a1a1a',
+    secondary: '#F97316',
+    secondaryForeground: '#FFFFFF',
 
-    // Muted / subdued elements (dividers, timestamps, placeholders)
-    muted: '#f0f0f0',
-    mutedForeground: '#737373',
+    muted: '#2A2A35',
+    mutedForeground: '#8A8A9A',
 
-    // Accent highlights (badges, selected items, focus rings)
-    accent: '#f0f0f0',
-    accentForeground: '#1a1a1a',
+    accent: '#1E293B',
+    accentForeground: '#60A5FA',
 
-    // Destructive actions (delete, error states)
-    destructive: '#ef4444',
-    destructiveForeground: '#ffffff',
+    destructive: '#EF4444',
+    destructiveForeground: '#FFFFFF',
 
-    // Borders and input outlines
-    border: '#e5e5e5',
-    input: '#e5e5e5',
+    border: '#2A2A35',
+    input: '#2A2A35',
+
+    // Chat-specific
+    myBubble: '#3B82F6',
+    myBubbleText: '#FFFFFF',
+    otherBubble: '#1E1E28',
+    otherBubbleText: '#F0F0F5',
+    onlineGreen: '#10B981',
+    warningAmber: '#F59E0B',
   },
-
-  // Border radius (in px). Sync from the sibling web artifact's --radius
-  // CSS variable. This value applies to cards, buttons, inputs, and modals.
-  radius: 8,
+  radius: 12,
 };
 
 export default colors;
+
+// 12 preset avatar colors
+export const AVATAR_COLORS: Record<string, string> = {
+  rose: '#FB7185',
+  orange: '#FB923C',
+  amber: '#FBBF24',
+  lime: '#A3E635',
+  emerald: '#34D399',
+  cyan: '#22D3EE',
+  blue: '#60A5FA',
+  violet: '#A78BFA',
+  purple: '#C084FC',
+  pink: '#F472B6',
+  slate: '#94A3B8',
+  teal: '#2DD4BF',
+};
+
+export const AVATAR_COLOR_KEYS = Object.keys(AVATAR_COLORS);

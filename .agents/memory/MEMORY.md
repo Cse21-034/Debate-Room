@@ -1,0 +1,2 @@
+- [DebateRoom architecture](debateroom-arch.md) — Express+Socket.io backend + Expo frontend, Postgres via Drizzle, JWT auth; no Supabase.
+- [Codegen fix](codegen-fix.md) — Orval regenerates lib/api-zod/src/index.ts each run; the codegen script uses printf to overwrite it post-generation.
